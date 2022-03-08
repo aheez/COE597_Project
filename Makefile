@@ -40,7 +40,7 @@ LD = ld
 ###############################################################################
 # CFLAGS
 ###############################################################################
-CFLAGS = -Wall -Wextra -Werror -std=c11 -pedantic -O2 -g -D_POSIX_C_SOURCE=200809L
+CFLAGS = -Wall -Wextra -Werror -std=c11 -pedantic -O2 -g 
 # CFLAGS += -MDD -MP -MF"$(@:%.o=.d)"
 CFLAGS += $(C_INC)
 
@@ -61,17 +61,29 @@ vpath %.c $(sort $(SRC_DIR))
 ###############################################################################
 # Build rules
 ###############################################################################
-all: $(BLD_DIR) $(TARGET)
+all: $(BLD_DIR) $(TARGET) 
 
 $(TARGET): $(OBJECTS)
-	$(LD) $(LDFLAGS) -o $@ $(OBJECTS) $(LIBS)
+	$(CC) $(LDFLAGS) -o $(TARGET) $(OBJECTS) $(LIBS)
 
-$(OBJECTS): $(SRC_FILES)
+$(BLD_DIR)/%.o: %.c Makefile | $(BLD_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(BLD_DIR):
-	mkdir -p $(BLD_DIR)
+# $(OBJECTS):$(SRC_FILES)
+# 	$(CC) -c $(CFLAGS) -W $< -o $@
 
+$(BLD_DIR):
+	mkdir -p $@
+
+check:
+	@echo "Checking..."
+	@echo $(SRC_FILES)
+
+check-all:
+	@echo "Checking..."
+	@echo $(SRC_FILES)
+	@echo $(HDR_FILES)
+	@echo $(OBJECTS)
 clean:
 	rm -rf $(BLD_DIR)
 	rm -f $(TARGET)
