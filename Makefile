@@ -26,7 +26,8 @@ HDR_DIR = Inc
 # Header files
 HDR_FILES = $(wildcard $(HDR_DIR)/*.h)
 
-C_INC = -I$(HDR_DIR)
+C_INC =	-I$(HDR_DIR) \
+		-I/usr/include/allegro5
 
 TARGET = Synth
 
@@ -40,18 +41,18 @@ LD = ld
 ###############################################################################
 # CFLAGS
 ###############################################################################
-CFLAGS = -Wall -Wextra -Werror -std=c11 -pedantic -O2 -g 
+CFLAGS = -Wall -std=c11 -pedantic -O2 -g
 # CFLAGS += -MDD -MP -MF"$(@:%.o=.d)"
 CFLAGS += $(C_INC)
 
 ###############################################################################
 # LDFLAGS
-LDFLAGS = -s -lc
+LDFLAGS = -s -lc 
 
 ###############################################################################
 # Libraries
 ###############################################################################
-LIBS = -lm -lpthread -lrt `allegro-config --libs`
+LIBS = `pkg-config --libs allegro-5`
 
 ###############################################################################
 # OBJECTS
@@ -64,7 +65,7 @@ vpath %.c $(sort $(SRC_DIR))
 all: $(BLD_DIR) $(TARGET) 
 
 $(TARGET): $(OBJECTS)
-	$(CC) $(LDFLAGS) -o $(TARGET) $(OBJECTS) $(LIBS)
+	$(CC) $(LDFLAGS) $(OBJECTS) -o $(TARGET) $(LIBS)
 
 $(BLD_DIR)/%.o: %.c Makefile | $(BLD_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -74,6 +75,9 @@ $(BLD_DIR)/%.o: %.c Makefile | $(BLD_DIR)
 
 $(BLD_DIR):
 	mkdir -p $@
+
+run:
+	./$(TARGET)
 
 check:
 	@echo "Checking..."
