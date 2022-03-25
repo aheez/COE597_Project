@@ -15,7 +15,7 @@ SZ = size
 ###############################################################################
 # Source directory
 # Directory: src
-SRC_DIR = src
+SRC_DIR = Src
 # Source files
 SRC_FILES = $(wildcard $(SRC_DIR)/*.c)
 
