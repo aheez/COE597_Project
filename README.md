@@ -4,5 +4,6 @@
 - `./setup.sh`
 ## `make` Commands
 - `make build all` to compile the project 
-- `make clean` to remove the build directory
+- `make clean` to remove the build directory and the program 
+- `./Synth` to run the program after building 
 
