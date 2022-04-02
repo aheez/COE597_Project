@@ -85,6 +85,6 @@ int main(int argc, char **argv){
 	al_destroy_display(display1);
 	al_uninstall_mouse();
 	al_uninstall_keyboard();
-	
+
 	return 0;
 }
