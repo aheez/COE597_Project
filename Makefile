@@ -1,11 +1,4 @@
 ###############################################################################
-# Name of the project Synth
-# File: Makefile
-# Purpose: Makefile for the project Synth
-# Author: Ahmad Almofeez
-# Date: 04/02/2022
-# Version: 0.1
-###############################################################################
 # Build directory
 # Directory: build
 BLD_DIR = build
@@ -37,7 +30,7 @@ CC = gcc
 ###############################################################################
 # CFLAGS
 ###############################################################################
-CFLAGS = -Wall -std=c11 -pedantic -O2 -g
+CFLAGS = -Wall -g3
 CFLAGS += $(C_INC)
 
 ###############################################################################
@@ -47,7 +40,7 @@ LDFLAGS = -s -lc
 ###############################################################################
 # Libraries
 ###############################################################################
-LIBS = `pkg-config --libs allegro-5`
+LIBS = -lm `pkg-config --libs allegro-5 allegro_audio-5 allegro_font-5 allegro_primitives-5`
 
 ###############################################################################
 # OBJECTS
@@ -63,13 +56,16 @@ $(TARGET): $(OBJECTS)
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $(TARGET) $(LIBS)
 
 $(BLD_DIR)/%.o: %.c Makefile | $(BLD_DIR)
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@ -lm
 
 $(BLD_DIR):
 	mkdir -p $@
 
 run:
 	./$(TARGET)
+
+debug:
+	gdb ./$(TARGET)
 
 check:
 	@echo "Checking..."
@@ -80,6 +76,7 @@ check-all:
 	@echo $(SRC_FILES)
 	@echo $(HDR_FILES)
 	@echo $(OBJECTS)
+
 clean:
 	rm -rf $(BLD_DIR)
 	rm -f $(TARGET)
