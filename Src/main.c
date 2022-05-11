@@ -66,7 +66,6 @@ static void update_main_buffer(ALLEGRO_AUDIO_STREAM * stream) {
 
 	al_set_audio_stream_playing(stream, false);
 	float *temp = malloc(BUFFER_SIZE * sizeof(float));
-	// ClearBuffer(&temp, BUFFER_SIZE);
 	ClearBuffer(BUFFER_SIZE, temp);
 	for (int i = 0; i < BUFFER_SIZE; i++) 
 		for (int j = 0; j < no_actSig; j++) {
@@ -120,11 +119,6 @@ static void clear_active_signals() {
 }
 
 
-// TODO: get and set audio fragments for the main buffer (from the active signals)
-// static void play_audio(ALLEGRO_AUDIO_STREAM *stream) {
-// }
-
-// TODO: Make this a function
 static void HandleAudio() {
 
 	printf("Main thread running\n");
@@ -232,9 +226,6 @@ int main(int argc, char ** argv) {
 			if (event.keyboard.keycode == ALLEGRO_KEY_ESCAPE)
 			event.keyboard.keycode = 0;
 				goto finish;
-			break;
-
-		default:
 			break;
 		}
 	}
