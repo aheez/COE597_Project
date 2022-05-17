@@ -1,4 +1,4 @@
-#include "main.h"
+#include "main.h" // A header file that have all the includes and relavent structs
 
 const char * waveforms [] = {
 	"SINE",
@@ -7,15 +7,95 @@ const char * waveforms [] = {
 	"SAWTOOTH"
 };
 
-ALLEGRO_DISPLAY * display;
+static int						no_actSig = 0;				// Number of active signals
+static int						no_osc = 0;					// Number of oscillators
+static Oscillator				* oscillators = NULL;		// Array of all oscillators
+static audioSignal				* active_signals = NULL;	// Array of active signals
+static struct mainBufferStruct	mainBuffer;					// Main buffer
+static bool						mainThread = false;			// Main thread flag
+ALLEGRO_DISPLAY					* display;					// Display object
+ALLEGRO_MUTEX					* mutex = NULL;				// Define Mutex
 
-static int no_actSig = 0;					// Number of active signals
-static int no_osc = 0;						// Number of oscillators
-static Oscillator * oscillators = NULL;		// Array of all oscillators
-static audioSignal * active_signals = NULL;	// Array of active signals
-static struct mainBufferStruct mainBuffer;		// Main buffer
-static bool mainThread = false;				// Main thread flag
+int main(int argc, char ** argv) {
 
+	/*
+		Initiat all the needed functions, libraries and variables for the program.
+		And handle the display functions of the program
+	*/
+	must_init(al_init(), "allegro");
+	must_init(al_install_audio(), "audio");
+	must_init(al_install_keyboard(), "keyboard");
+	must_init(al_init_primitives_addon(), "primitives");
+	must_init(init_main_buffer(), "main buffer");
+	must_init(init_oscillators(), "oscillators");
+	must_init(init_active_signals(), "active signals");
+
+	// Create timer
+	ALLEGRO_TIMER 		* timer = al_create_timer(1.0 / 60.0);
+
+	// Create audio thread
+	ALLEGRO_THREAD		* audioThread = al_create_thread(HandleAudio, NULL);
+	must_init(audioThread, "audio thread");
+
+	// Create  display object
+	display = al_create_display(SCREEN_WIDTH, SCREEN_HEIGHT);
+	must_init(display, "display");
+	
+	// queue and event object used by the display thread
+	ALLEGRO_EVENT_QUEUE	* queue = al_create_event_queue();
+	ALLEGRO_EVENT 		event;
+
+	al_register_event_source(queue, al_get_display_event_source(display));
+	al_register_event_source(queue, al_get_keyboard_event_source());
+	al_register_event_source(queue, al_get_timer_event_source(timer));
+
+	// Create mutex
+	mutex = al_create_mutex_recursive();
+	// must_init(mutex, "mutex");
+
+	plot_axis();
+
+	mainThread = true;
+	al_start_thread(audioThread);
+	al_start_timer(timer);
+
+	// Display thread
+	while (1) {
+
+		al_wait_for_event(queue, &event);
+
+		switch (event.type) {
+
+		case ALLEGRO_EVENT_DISPLAY_CLOSE:
+			goto finish;
+			break;
+		
+		case ALLEGRO_EVENT_TIMER:
+			if (no_actSig > 0) 
+		 		// plot_waveform();
+			break;
+		}
+	}
+
+finish:
+	mainThread = false;
+	al_join_thread(audioThread, NULL);
+	al_uninstall_audio();
+	al_uninstall_keyboard();
+	al_shutdown_primitives_addon();
+	al_destroy_display(display);
+	al_destroy_timer(timer);
+	al_destroy_event_queue(queue);
+	al_destroy_mutex(mutex);
+	free(oscillators);
+	free(active_signals);
+	printf("Finished\n");
+	return 0;
+}
+
+/*
+	Initiation function
+*/
 static void must_init(bool test, const char * msg) {
 	
 	if (!test) {
@@ -25,7 +105,10 @@ static void must_init(bool test, const char * msg) {
 
 }
 
-// Generate Oscillator list
+/*
+	Generate Oscillator list based on the osc_conf in:
+	../Inc/key_osc_map.h
+*/
 static bool init_oscillators() {
 	
 	no_osc = sizeof(osc_conf) / sizeof(osc_conf[0]);
@@ -39,7 +122,11 @@ static bool init_oscillators() {
 	return true;
 }
 
-// Generate Active audioSignal list
+/*
+	Generate Active audioSignal list
+	which contains all the active signals oscillators, buffer and status flag
+	for each signal
+*/
 static bool init_active_signals() {
 	
 	active_signals = malloc(MAX_OSCILLATORS * sizeof(audioSignal));
@@ -51,28 +138,42 @@ static bool init_active_signals() {
 	return true;
 }
 
+
+/*
+	mainBuffer initiation function:
+	It sets the index initial value to zero
+*/
 static bool init_main_buffer() {
 	mainBuffer.index = 0;
 	return true;
 }
 
 
-/**
- * @brief Update the main buffer (mix all active signals)
- */
+/*
+	Update the main buffer:
+	mix all active signals making sure that the maximum value is
+	between [-1,1]
+*/
 static void update_main_buffer(ALLEGRO_AUDIO_STREAM * stream) {
 
-	printf("Updating main buffer\nNo of active signals: %d\n", no_actSig);
+	float	*temp = malloc(BUFFER_SIZE * sizeof(float));
+
+	al_lock_mutex(mutex);
 
 	al_set_audio_stream_playing(stream, false);
-	float *temp = malloc(BUFFER_SIZE * sizeof(float));
-	ClearBuffer(BUFFER_SIZE, temp);
+
+	ClearBuffer(BUFFER_SIZE, temp);					// Set all the values in the temporory to zero
+
 	for (int i = 0; i < BUFFER_SIZE; i++) 
+
 		for (int j = 0; j < no_actSig; j++) {
-			if (active_signals[j].status == 1) {
-				temp[i] += active_signals[j].buffer[i] / no_actSig;
-			}
+
+			if (active_signals[j].status == 1) 
+				temp[i] += active_signals[j].buffer[i] / no_actSig;	// mix all the active signals maintaining the same ratios between thier amplitudes
+			
 		}
+
+	// Select the main buffer segment to be filled
 	if (mainBuffer.index == 0) {
 		mainBuffer.buffer1 = al_get_audio_stream_fragment(stream);
 		mainBuffer.index = 1;
@@ -84,29 +185,46 @@ static void update_main_buffer(ALLEGRO_AUDIO_STREAM * stream) {
 		memcpy(mainBuffer.buffer2, temp, BUFFER_SIZE * sizeof(float));
 		al_set_audio_stream_fragment(stream, mainBuffer.buffer2);
 	}
+
 	free(temp);
+	al_unlock_mutex(mutex);
 	al_set_audio_stream_playing(stream, true);
 }
 
+/*
+	Adds the oscillator assigned to the key pressed to the 
+	active signal list
+*/
 static void key_down(int keycode) {
-	printf("Key pressed: %s\n", al_keycode_to_name(keycode));
+
 	if (no_actSig == MAX_OSCILLATORS) {
 		fprintf(stderr, "Error: Maximum number of active signals reached\n");
 		return;
 	}
+
 	int index = 0;
 	no_actSig++;
-	for (int i = 0; i < no_osc; i++) {
-		if (osc_conf[i].key == keycode) {
-			index = i;
+	for (index; index < no_osc; index++) {
+		if (osc_conf[index].key == keycode) {
+			fprintf(stdout, "Oscillator of type: %s and frequency: %.2f is added to the active signals.\n", waveforms[osc_conf[index].type], osc_conf[index].freq);
 			break;
 		}
 	}
+
+	if ( index == no_osc ) {
+		fprintf(stderr, "Error: Key %d is not assigned to any oscillator\n", keycode);
+		no_actSig--;
+		return;
+	}
+
 	active_signals[no_actSig - 1].status = 1;
 	active_signals[no_actSig - 1].osc = &oscillators[index];
 	GenerateWaveform(BUFFER_SIZE, active_signals[no_actSig - 1].buffer, * active_signals[no_actSig - 1].osc);
 }
 
+/*
+	Clear the active signal list
+*/
 static void clear_active_signals() {
 
 	printf("Clearing active signals\n");
@@ -118,20 +236,22 @@ static void clear_active_signals() {
 	no_actSig = 0;
 }
 
-
+/* 
+	Handle all audio processes
+*/
 static void HandleAudio() {
 
 	printf("Main thread running\n");
 
-	ALLEGRO_TIMER * timer = al_create_timer(1.0 / 100);
-	ALLEGRO_EVENT_QUEUE * event_queue = al_create_event_queue();
-	ALLEGRO_EVENT event;
-	ALLEGRO_KEYBOARD_STATE kst;
-	ALLEGRO_AUDIO_STREAM * stream = al_create_audio_stream	(2, 
-															BUFFER_SIZE,
-															SAMPLE_FREQUENCY,
-															ALLEGRO_AUDIO_DEPTH_FLOAT32,
-															ALLEGRO_CHANNEL_CONF_1);
+	ALLEGRO_TIMER 			* timer = al_create_timer(1.0 / 100);
+	ALLEGRO_EVENT_QUEUE 	* event_queue = al_create_event_queue();
+	ALLEGRO_EVENT 			event;
+	ALLEGRO_KEYBOARD_STATE	kst;
+	ALLEGRO_AUDIO_STREAM	* stream = al_create_audio_stream	(2, 
+																BUFFER_SIZE,
+																SAMPLE_FREQUENCY,
+																ALLEGRO_AUDIO_DEPTH_FLOAT32,
+																ALLEGRO_CHANNEL_CONF_1);
 
 	must_init(stream, "audio stream");
 	
@@ -185,149 +305,30 @@ static void plot_axis() {
 	al_flip_display();
 }
 
-int main(int argc, char ** argv) {
-	
-	must_init(al_init(), "allegro");
-	must_init(al_install_audio(), "audio");
-	must_init(al_install_keyboard(), "keyboard");
-	must_init(al_init_primitives_addon(), "primitives");
-	must_init(init_main_buffer(), "main buffer");
-	must_init(init_oscillators(), "oscillators");
-	must_init(init_active_signals(), "active signals");
-	ALLEGRO_THREAD * audioThread = al_create_thread(HandleAudio, NULL);
-	must_init(audioThread, "audio thread");
-	
-	ALLEGRO_EVENT_QUEUE * queue = al_create_event_queue();
+static void plot_waveform() {
+	ALLEGRO_COLOR	red = al_map_rgba_f(1.0, 0, 0, 1.0);
+	float			scale = 1.f * SCREEN_HEIGHT / 2.f;
+	float			x1, x2, y1, y2;
+	float			*tempBuff = malloc(BUFFER_SIZE * sizeof(float));
 
-	display = al_create_display(SCREEN_WIDTH, SCREEN_HEIGHT);
-	must_init(display, "display");
+	al_lock_mutex(mutex);
+	if (mainBuffer.index == 0)
+		// memcpy(tempBuff, mainBuffer.buffer1, BUFFER_SIZE * sizeof(float));
+		tempBuff = mainBuffer.buffer1;
+	else
+		// memcpy(tempBuff, mainBuffer.buffer2, BUFFER_SIZE * sizeof(float));
+		tempBuff = mainBuffer.buffer2;
 
-	al_register_event_source(queue, al_get_display_event_source(display));
-	// al_register_event_source(queue, al_get_keyboard_event_source());
+	for (int i = 0; i < SCREEN_WIDTH; i++) {
 
-	ALLEGRO_EVENT event;
-
+		x1 = i*1.f;
+		x2 = x1 + 1.f;
+		y1 = tempBuff[i] * scale;
+		y2 = tempBuff[i + 1] * scale;
+		
+		al_draw_line(x1, y1, x2, y2, red, 1);
+	}
+	al_unlock_mutex(mutex);
+	free(tempBuff);
 	plot_axis();
-
-	mainThread = true;
-	al_start_thread(audioThread);
-
-	while (1) {
-
-		al_wait_for_event(queue, &event);
-
-		switch (event.type) {
-
-		case ALLEGRO_EVENT_DISPLAY_CLOSE:
-			goto finish;
-			break;
-		
-		case ALLEGRO_EVENT_KEY_DOWN:
-			if (event.keyboard.keycode == ALLEGRO_KEY_ESCAPE)
-			event.keyboard.keycode = 0;
-				goto finish;
-			break;
-		}
-	}
-
-finish:
-	mainThread = false;
-	al_join_thread(audioThread, NULL);
-	al_uninstall_audio();
-	al_uninstall_keyboard();
-	al_shutdown_primitives_addon();
-	al_destroy_display(display);
-	free(oscillators);
-	free(active_signals);
-	printf("Finished\n");
-	return 0;
 }
-
-/* static ALLEGRO_DISPLAY *display1;
-
-static void redraw(ALLEGRO_COLOR color1, ALLEGRO_COLOR color2) {
-
-	al_set_target_backbuffer(display1);
-	al_clear_to_color(color1);
-	al_flip_display();
-
-}
-
-int main(int argc, char **argv){
-	printf("Version: %s\n",ALLEGRO_VERSION_STR);
-
-	// Initialize allegro
-	if(!al_init()) {
-		fprintf(stderr, "failed to initialize allegro!\n");
-		return -1;
-	}
-
-	// initialize the keyboard
-	if(!al_install_keyboard()) {
-		fprintf(stderr, "failed to initialize the keyboard!\n");
-		return -1;
-	}
-	// intialize the mouse
-	if(!al_install_mouse()) {
-		fprintf(stderr, "failed to initialize the mouse!\n");
-		return -1;
-	}
-	// Initialize the display
-	display1 = al_create_display(640, 480);
-	if(!display1) {
-		al_destroy_display(display1);
-		fprintf(stderr, "failed to create display!\n");
-		return -1;
-	}
-	
-	ALLEGRO_COLOR black = al_map_rgb(0, 0, 0);
-	ALLEGRO_COLOR white = al_map_rgb(255, 255, 255);
-	ALLEGRO_COLOR red = al_map_rgb(255, 0, 0);
-
-	// mouse state
-	ALLEGRO_MOUSE_STATE mst0;
-	ALLEGRO_MOUSE_STATE mst;
-	// keyboard state
-	ALLEGRO_KEYBOARD_STATE kst;
-
-	memset(&mst0, 0, sizeof(mst0));
-
-	while (1)
-	{
-		al_get_mouse_state(&mst);
-
-		if (mst.display != mst0.display || mst.x != mst0.x || mst.y != mst0.y)
-		{
-			if (mst.display == NULL)
-				printf("Mouse is not on display\n");
-			else if (mst.display == display1)
-				printf("Mouse is on display\n");
-			else
-				printf("Uknown Display");
-			
-			mst0 = mst;
-		}
-		
-		if (mst.display == display1)
-		{
-			redraw(red, black);
-		}
-		else
-		{
-			redraw(white, black);
-		}
-
-		al_rest(0.1);
-
-		al_get_keyboard_state(&kst);
-		if (al_key_down(&kst, ALLEGRO_KEY_ESCAPE))
-			break;
-	}
-
-	// allegro distroy and exit
-	al_destroy_display(display1);
-	al_uninstall_mouse();
-	al_uninstall_keyboard();
-
-	return 0;
-} */

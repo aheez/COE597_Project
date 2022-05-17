@@ -1,5 +1,6 @@
 #include "signal_generator.h"
 
+static uint64_t index = 0;
 
 void GenerateWaveform(uint32_t buff_size, float* buff, Oscillator osc) {
 
@@ -21,29 +22,36 @@ void GenerateWaveform(uint32_t buff_size, float* buff, Oscillator osc) {
 		break;
 	}
 
-	// AddedNoise(buff_size, buff);
 }
 
 void Sine(uint32_t buff_size, float* buff, Oscillator osc) {
-	for(int i = 0; i<buff_size; i++)
-		buff[i] = - osc.amplitude * sinf(i*Ts*TWOPI*osc.frequency+DEG2RAD(osc.phase));
+	for(int i = 0; i<buff_size; i++) {
+		buff[i] = - osc.amplitude * sinf(index*Ts*TWOPI*osc.frequency+DEG2RAD(osc.phase));
+		index++;
+	}
 }
 
 void Square(uint32_t buff_size, float* buff, Oscillator osc) {
-	for(int i = 0; i<buff_size; i++)
-		buff[i] = (sinf(i*Ts*TWOPI*osc.frequency+ DEG2RAD(osc.phase)) >= 0.0f) ? 1.0f * osc.amplitude : -1.0f * osc.amplitude;
+	for(int i = 0; i<buff_size; i++) {
+		buff[i] = (sinf(index*Ts*TWOPI*osc.frequency+ DEG2RAD(osc.phase)) >= 0.0f) ? 1.0f * osc.amplitude : -1.0f * osc.amplitude;
+		index++;
+	}
 }
 
 void Triangle(uint32_t buff_size, float* buff, Oscillator osc) {
 	float p = 1.0f / osc.frequency;
 	float shift = (1.0f/(4.0f*osc.frequency)) + (DEG2RAD(osc.phase)/TWOPI*osc.frequency);
-	for(int i = 0; i<buff_size; i++)
-		buff[i] = osc.amplitude * (2.0f * abs(2.0f * ((Ts * i + shift) / p) - floor((Ts * i + shift) / p + 0.5)) - 1);
+	for(int i = 0; i<buff_size; i++) {
+		buff[i] = osc.amplitude * (2.0f * abs(2.0f * ((Ts * index + shift) / p) - floor((Ts * index + shift) / p + 0.5)) - 1);
+		index++;
+	}
 }
 
 void Sawtooth(uint32_t buff_size, float* buff, Oscillator osc) {
-	for(int i= 0; i<buff_size; i++)
-		buff[i] = osc.amplitude * (2.0f * (fmodf(Ts*i*osc.frequency, 1.0f) - 0.5f));
+	for(int i= 0; i<buff_size; i++) {
+		buff[i] = osc.amplitude * (2.0f * (fmodf(Ts*index*osc.frequency, 1.0f) - 0.5f));
+		index++;
+	}
 }
 
 void ClearBuffer(uint32_t buff_size, float* buff) {
