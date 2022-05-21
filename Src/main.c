@@ -7,14 +7,14 @@ const char * waveforms [] = {
 	"SAWTOOTH"
 };
 
-static int						no_actSig = 0;				// Number of active signals
-static int						no_osc = 0;					// Number of oscillators
-static Oscillator				* oscillators = NULL;		// Array of all oscillators
-static audioSignal				* active_signals = NULL;	// Array of active signals
-static struct mainBufferStruct	mainBuffer;					// Main buffer
-static bool						mainThread = false;			// Main thread flag
-ALLEGRO_DISPLAY					* display;					// Display object
-ALLEGRO_MUTEX					* mutex = NULL;				// Define Mutex
+static int						no_actSig			= 0;		// Number of active signals
+static int						no_osc 				= 0;		// Number of oscillators
+static Oscillator				* oscillators 		= NULL;		// Array of all oscillators
+static audioSignal				* active_signals 	= NULL;		// Array of active signals
+static struct mainBufferStruct	mainBuffer;						// Main buffer
+static bool						mainThread 			= false;	// Main thread flag
+ALLEGRO_DISPLAY					* display			= NULL;		// Display object
+ALLEGRO_MUTEX					* mutex 			= NULL;		// Define Mutex
 
 int main(int argc, char ** argv) {
 
