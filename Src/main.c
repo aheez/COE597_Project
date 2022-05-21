@@ -212,7 +212,7 @@ static void key_down(int keycode) {
 	}
 
 	if ( index == no_osc ) {
-		fprintf(stderr, "Error: Key %d is not assigned to any oscillator\n", keycode);
+		fprintf(stderr, "Error: Key %s is not assigned to any oscillator\n", al_keycode_to_name(keycode));
 		no_actSig--;
 		return;
 	}
@@ -309,7 +309,7 @@ static void plot_waveform() {
 	ALLEGRO_COLOR	red = al_map_rgba_f(1.0, 0, 0, 1.0);
 	float			scale = 1.f * SCREEN_HEIGHT / 2.f;
 	float			x1, x2, y1, y2;
-	float			*tempBuff = malloc(BUFFER_SIZE * sizeof(float));
+	float			*tempBuff = al_malloc(BUFFER_SIZE * sizeof(float));
 
 	al_lock_mutex(mutex);
 	if (mainBuffer.index == 0)
@@ -329,6 +329,6 @@ static void plot_waveform() {
 		al_draw_line(x1, y1, x2, y2, red, 1);
 	}
 	al_unlock_mutex(mutex);
-	free(tempBuff);
+	al_free(tempBuff);
 	plot_axis();
 }

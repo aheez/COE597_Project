@@ -1,7 +1,6 @@
 #ifndef __MAIN_FILE__
 #define __MAIN_FILE__
 
-#include<math.h>
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
@@ -11,6 +10,7 @@
 #include "allegro5/allegro_audio.h"
 #include "allegro5/allegro_font.h"
 #include "key_osc_map.h"
+#include "signal_generator.h"
 
 #define SCREEN_WIDTH ( 1024U )
 #define SCREEN_HEIGHT ( 576U )
